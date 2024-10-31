@@ -224,22 +224,37 @@ with w.if_todo('pre_iono'):
                        log="$nameMS_pre.log", commandType="DP3")
 
     # Smooth data concat_all.MS:DATA -> SMOOTHED_DATA
-    # TODO RS and IS need very different smoothing - could do an extra iteration for the IS?
+    MSs_concat_phaseupIONO.run_Blsmooth(incol='DATA', logstr='smooth')
     # Equation for allowed smoothing, assuming ONLY TEC and kernel is one sixth of the bandwidth it takes for one wrap at 54 MHz
     # kernelsize_smoothnessconstraint [MHz] = 0.3 / dTEC [TECU]
     # For RS: Expect up to 0.5 TECU, kernel should be ~0.6 MHz (smaller since we also have clock)
     # FOR IS: Expect up to 5 TECU, kernel should be ~0.1 MHz
     smoothnessconstraint = '0.1e6' if MSs_concat_all.hasIS else '0.6e6'
-    MSs_concat_phaseupIONO.run_Blsmooth(incol='DATA', logstr='smooth')
+
+    # First rot+scalarphase -> get rough rotation, phases here have +/-pi ambiguity
     # Solve concat_all-phaseupIONO.MS:SMOOTHED_DATA (only solve)
     logger.info('Calibrating IONO (distant stations)...')
     MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA \
-                           sol.h5parm=$pathMS/preiono.h5 sol.mode=rotation+diagonal sol.rotationdiagonalmode=scalarphase sol.datause=full \
+                           sol.h5parm=$pathMS/preiono0.h5 sol.mode=rotation+diagonal sol.rotationdiagonalmode=scalarphase sol.datause=full \
                            sol.solint=1 sol.nchan=1 sol.smoothnessconstraint={smoothnessconstraint} sol.smoothnessreffrequency=54e6', \
                            log='$nameMS_solIONO.log', commandType="DP3")
 
-    lib_util.run_losoto(s, 'preiono', [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
+    lib_util.run_losoto(s, 'preiono0', [ms + '/preiono0.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
                         [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-ref-rot.parset', parset_dir + '/losoto-plot-scalarph.parset', parset_dir + '/losoto-plot-rot.parset', parset_dir + '/losoto-fr.parset'])
+
+    logger.info('Pre-correct rotation (distant stations)...')
+    MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono0.h5 \
+                cor.correction=rotation000', log='$nameMS_corROT.log', commandType="DP3")
+
+    # Just scalarphase to remove ambiguity
+    logger.info('Calibrating IONO (distant stations)...')
+    MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS msin.datacolumn=SMOOTHED_DATA sol.h5parm=$pathMS/preiono.h5 \
+                                 sol.mode=scalarphase sol.datause=single sol.solint=1 sol.nchan=1 \
+                                 sol.smoothnessconstraint={smoothnessconstraint} sol.smoothnessreffrequency=54e6', \
+                               log='$nameMS_solIONO.log', commandType="DP3")
+
+    lib_util.run_losoto(s, 'preiono', [ms + '/preiono.h5' for ms in MSs_concat_phaseupIONO.getListStr()],
+                        [parset_dir + '/losoto-ref-ph.parset', parset_dir + '/losoto-plot-scalarph.parset'])
 ### DONE
 ########################################################
 
