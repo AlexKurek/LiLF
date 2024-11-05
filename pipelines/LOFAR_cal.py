@@ -245,6 +245,7 @@ with w.if_todo('pre_iono'):
     logger.info('Pre-correct rotation (distant stations)...')
     MSs_concat_phaseupIONO.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-preiono0.h5 msin.datacolumn=DATA \
                 cor.correction=rotation000', log='$nameMS_corROT.log', commandType="DP3")
+    MSs_concat_phaseupIONO.run_Blsmooth(incol='CORRECTED_DATA', logstr='smooth')
 
     # Just scalarphase to remove ambiguity
     logger.info('Calibrating IONO (distant stations)...')
