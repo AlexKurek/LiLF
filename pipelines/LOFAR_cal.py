@@ -458,6 +458,32 @@ with w.if_todo('cal_bp'):
     lib_util.run_losoto(s, 'cal-bp.h5', 'cal-bp.h5', [parset_dir + '/losoto-bp.parset'], plots_dir='plots-bp')
 ### DONE
 
+with w.if_todo('final_correct'):
+    ## Pol align correction concat_all.MS:DATA -> CORRECTED_DATA
+    logger.info('Polalign correction...')
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=DATA \
+                   cor.parmdb=cal-pa.h5 cor.correction=polalign', log='$nameMS_corPA.log', commandType="DP3")
+    # Correct beam concat_all.MS:CORRECTED_DATA -> CORRECTED_DATA
+    logger.info('Beam correction...')
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-beam.parset msin=$pathMS corrbeam.updateweights=False',
+                       log='$nameMS_beam.log', commandType="DP3")
+    logger.info('Amp correction...')
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS msin.datacolumn=CORRECTED_DATA \
+                   cor.parmdb=cal-bp-sub.h5 cor.correction=amplitude000', log='$nameMS_corPA.log', commandType="DP3")
+    # FR corruption concat_all.MS:MODEL_DATA -> MODEL_DATA_FRCOR
+    logger.info('Faraday rotation correction (MODEL_DATA - > MODEL_DATA_FRCOR)...')
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS \
+                        cor.parmdb=cal-fr.h5 cor.correction=rotationmeasure000 cor.invert=False', log='$nameMS_corFR.log', commandType="DP3")
+    # Correct iono concat_all:CORRECTED_DATA -> CORRECTED_DATA
+    logger.info('Iono correction...')
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono-cs.h5 \
+                cor.correction=phase000', log='$nameMS_corIONO_CS.log', commandType="DP3")
+    MSs_concat_all.run(f'DP3 {parset_dir}/DP3-cor.parset msin=$pathMS cor.parmdb=cal-iono.h5 \
+                cor.correction=phase000', log='$nameMS_corIONO.log', commandType="DP3")
+    # Smooth data concat_all.MS:CORRECTED_DATA -> SMOOTHED_DATA
+    sys.exit()
+
+
 # if develop:
 #     # Pol align correction DATA -> CORRECTED_DATA
 #     logger.info('Polalign correction...')
