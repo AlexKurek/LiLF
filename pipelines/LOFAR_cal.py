@@ -104,6 +104,15 @@ freqres = MSs.mssListObj[0].getChanband()
 
 logger.info(f"Initial time res: {tint:.1f}, nchan: {nchan}")
 
+with w.if_todo('rescale_flux'):
+    logger.info('Rescaling flux...')
+    for i, MS in enumerate(MSs.getListStr()):
+        rescale_factor = 1e-4
+        with pt.table(MS+'/HISTORY', readonly=False, ack=False) as hist:
+            if "Flux rescaled" not in hist.getcol('MESSAGE'):
+                s.add('taql "update %s set DATA = %f*DATA" && taql "insert into %s/HISTORY (TIME,MESSAGE) values (mjd(), \'Flux rescaled\')"' % (MS,rescale_factor,MS), \
+                      log='taql.log', commandType='general')
+
 with w.if_todo('concat_all'):
     freqstep = 1  # keep all channels
     timestep = int(np.rint(4 / tint))  # brings down to 4s
@@ -447,6 +456,7 @@ with w.if_todo('cal_bp'):
     MSs_concat_all.run(f'DP3 {parset_dir}/DP3-sol.parset msin=$pathMS sol.h5parm=$pathMS/bp-sub.h5 sol.mode=diagonal sol.datause=full \
                         sol.modeldatacolumns=[MODEL_DATA_FRCOR] sol.solint={str(timestep)} sol.nchan=1',
                        log='$nameMS_solBP.log', commandType="DP3")
+    sys.exit()
 
     flag_parset = '/losoto-flag-sparse.parset' if sparse_sb else '/losoto-flag.parset'
     lib_util.run_losoto(s, 'bp-sub', [ms + '/bp-sub.h5' for ms in MSs_concat_all.getListStr()],
